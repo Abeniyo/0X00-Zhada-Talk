@@ -1,40 +1,41 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
+from accounts.models import User
 
-User = get_user_model()
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
+class UserSerializer(serializers.ModelSerializer):
+    """Public user data (safe fields only)"""
+
+    full_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'password', 'password2')
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "middle_name",
+            "last_name",
+            "full_name",
+            "gender",
+            "age",
+            "is_verified",
+            "is_online",
+        ]
+        read_only_fields = ["id", "is_verified", "is_online"]
 
-    def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
-        return attrs
+    def get_full_name(self, user):
+        return f"{user.first_name} {user.last_name}".strip()
 
-    def create(self, validated_data):
-        validated_data.pop('password2')
-        user = User.objects.create_user(**validated_data)
-        # Send verification email here via signal or directly
-        return user
 
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """Allow users to update their own fields"""
 
-class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(required=True)
-    new_password = serializers.CharField(required=True, validators=[validate_password])
-
-class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-
-class ResetPasswordConfirmSerializer(serializers.Serializer):
-    new_password = serializers.CharField(required=True, validators=[validate_password])
-    uid = serializers.CharField()
-    token = serializers.CharField()
+    class Meta:
+        model = User
+        fields = [
+            "first_name",
+            "middle_name",
+            "last_name",
+            "gender",
+            "age",
+        ]
